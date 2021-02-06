@@ -197,6 +197,90 @@ double BooleanCircuit::possibleWorlds(gate_t g) const
   return totalp;
 }
 
+std::string BooleanCircuit::Save_Tseytin(gate_t g, std::string filename) const {
+  std::vector<std::vector<int>> clauses;
+  
+  // Tseytin transformation
+  for(gate_t i{0}; i<gates.size(); ++i) {
+    switch(getGateType(i)) {
+      case BooleanGate::AND:
+        {
+          int id{static_cast<int>(i)+1};
+          std::vector<int> c = {id};
+          for(auto s: getWires(i)) {
+            clauses.push_back({-id, static_cast<int>(s)+1});
+            c.push_back(-static_cast<int>(s)-1);
+          }
+          clauses.push_back(c);
+          break;
+        }
+
+      case BooleanGate::OR:
+        {
+          int id{static_cast<int>(i)+1};
+          std::vector<int> c = {-id};
+          for(auto s: getWires(i)) {
+            clauses.push_back({id, -static_cast<int>(s)-1});
+            c.push_back(static_cast<int>(s)+1);
+          }
+          clauses.push_back(c);
+        }
+        break;
+
+      case BooleanGate::NOT:
+        {
+          int id=static_cast<int>(i)+1;
+          auto s=*getWires(i).begin();
+          clauses.push_back({-id,-static_cast<int>(s)-1});
+          clauses.push_back({id,static_cast<int>(s)+1});
+          break;
+        }
+
+      case BooleanGate::IN:
+      case BooleanGate::UNDETERMINED:
+        ;
+    }
+  }
+  clauses.push_back({(int)g+1});
+
+  int fd;
+  char cfilename[filename.length() + 8];
+  strcpy(cfilename, filename.c_str());
+  cfilename[filename.length()] = '_';
+  cfilename[filename.length() + 1] = 'X';
+  cfilename[filename.length() + 2] = 'X';
+  cfilename[filename.length() + 3] = 'X';
+  cfilename[filename.length() + 4] = 'X';
+  cfilename[filename.length() + 5] = 'X';
+  cfilename[filename.length() + 6] = 'X';
+  cfilename[filename.length() + 7] = '\0';
+  fd = mkstemp(cfilename);
+  close(fd);
+
+  filename=cfilename;
+
+  std::ofstream ofs(filename.c_str());
+
+  ofs << "p cnf " << gates.size() << " " << clauses.size() << "\n";
+
+  for(unsigned i=0;i<clauses.size();++i) {
+    for(int x : clauses[i]) {
+      ofs << x << " ";
+    }
+    ofs << "0\n";
+  }
+//  if(display_prob) {
+//    for(gate_t in: inputs) {
+//      ofs << "w " << (static_cast<std::underlying_type<gate_t>::type>(in)+1) << " " << getProb(in) << "\n";
+//      ofs << "w -" << (static_cast<std::underlying_type<gate_t>::type>(in)+1) << " " << (1. - getProb(in)) << "\n";
+//    }
+//  }
+
+  ofs.close();
+
+  return filename;
+}
+
 std::string BooleanCircuit::Tseytin(gate_t g, bool display_prob=false) const {
   std::vector<std::vector<int>> clauses;
   
@@ -360,9 +444,10 @@ double BooleanCircuit::compilation(gate_t g, std::string compiler) const {
   }
 
   ifs.close();
-  if(unlink(outfilename.c_str())) {
-    throw CircuitException("Error removing "+outfilename);
-  }
+// TODO NAVE - uncomment?
+//  if(unlink(outfilename.c_str())) {
+//    throw CircuitException("Error removing "+outfilename);
+//  }
 
   return dnnf.dDNNFEvaluation(dnnf.getGate(std::to_string(i-1)));
 }

@@ -35,6 +35,8 @@ class BooleanCircuit : public Circuit<BooleanGate> {
   double WeightMC(gate_t g, std::string opt) const;
   double independentEvaluation(gate_t g) const;
 
+  std::string Save_Tseytin(gate_t g, std::string filename) const;
+
   virtual std::string toString(gate_t g) const override;
 
   friend class dDNNFTreeDecompositionBuilder;
